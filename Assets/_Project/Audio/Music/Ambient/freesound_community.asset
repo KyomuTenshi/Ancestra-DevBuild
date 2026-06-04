@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: freesound_community
   m_EditorClassIdentifier: Assembly-CSharp::AudioData
   clip: {fileID: 8300000, guid: be618e5d5c88a4dc9bcae730de1cc0cf, type: 3}
-  volume: 0.65
+  volume: 0.2
   pitch: 1
   loop: 1
   mixerGroup: {fileID: 1840938113225434107, guid: bd0f0893469d141cfbf263bc4dabe659, type: 2}

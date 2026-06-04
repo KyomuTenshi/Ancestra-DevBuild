@@ -15,9 +15,9 @@
 - [Архитектура](#архитектура)
 - [Требования](#требования)
 - [Установка и запуск](#установка-и-запуск)
-- [Структура проекта](#структура-проекта)
 - [Описание подсистем](#описание-подсистем)
 - [Паттерны и соглашения](#паттерны-и-соглашения)
+- [Утилиты](#утилиты)
 
 ---
 
@@ -28,6 +28,7 @@
 - Именованные ambient-слои с кроссфейдом при смене клипа; до 12 одновременных слоёв
 - Object pool для SFX с автоматическим расширением до `maxSize`; при переполнении прерывает самый старый источник
 - Маппинг «имя сцены → аудиоконфиг» через `SceneMusicConfig` ScriptableObject — без кода
+- `SceneAudioTrigger` — MonoBehaviour-альтернатива `SceneMusicConfig` для GameObject-уровня: режим `Replace` заменяет трек, режим `Push` добавляет в стек и делает `Pop` при `OnDisable` (для катсцен, аддитивных сцен)
 - Рандомизация pitch/volume через `SoundVariance`; при `Min == Max` пропускает `Random.Range`
 - Конвертация линейной громкости [0,1] → дБ для `AudioMixer` с кешом значений
 
@@ -37,6 +38,7 @@
 - Кеш разрешённых строк сбрасывается при смене языка
 - `LocalizableString` — сериализуемая структура с двумя режимами (`RawText` / `LocalizedKey`); неявное приведение к `string`
 - `LocalizedText` и `LocalizedLabel` — MonoBehaviour-компоненты для TMP и legacy Text с поддержкой форматирования и plural
+- `LocalizationCallbackReceiver` — MonoBehaviour-прокси для реакции на смену языка без написания кода; `UnityEvent<int>` в Inspector вызывается при `LanguageChangedMessage`; флаг `invokeOnEnable` синхронизирует UI при первом включении объекта
 - Горячая перезагрузка языковых данных в Editor через `OnValidate`
 
 ### Система сохранений
@@ -55,6 +57,16 @@
 - Режим `UseHandOff` — оверлей удерживается после активации сцены; получатель вызывает `ReleaseOverlay()` или срабатывает таймаут
 - Фабричные методы: `TransitionRequest.Default()`, `.Immediate()`, `.WithKey()`
 - `SceneLoader` — фасад с автоматическим fallback на `LoadSceneAsync` при отсутствии `SceneTransitionManager`
+
+### Система игрока
+- `PlayerInputHandler` — единственная точка чтения ввода (New Input System); экспонирует свойства (`MoveInput`, `LookInput`, `IsFocusing`, `FlashlightTogglePressedThisFrame` и др.) — остальные системы не обращаются к Input System напрямую
+- `PlayerMovementController` — движение, гравитация, head bob, приседание; параметры управляются через `MovementSettings` ScriptableObject
+- `PlayerCameraController` — сглаживание взгляда (SmoothDamp), Perlin-шум камеры, зависящий от уровня страха, focus-зум с дрожанием, покачивание фонарика
+- `MovementSettings` ScriptableObject — все числовые параметры игрока в одном месте: скорости, инерция, гравитация, head bob, sway фонарика, батарея, система страха (`AnimationCurve fearCurve`)
+
+### Нарративная система (Cutscene)
+- `CutsceneData` ScriptableObject — список кадров (`CutsceneFrame`): текст, опциональный `AudioClip`, override скорости печати; создаётся через `Ancestra/Narrative/Cutscene Data`
+- `CutsceneController` — последовательный показ кадров пролога; тап/клик → следующий кадр; fade между кадрами через `UIPanel`; переход в следующую сцену через `SceneLoader`; поддерживает `overrideNextScene` для гибкой маршрутизации
 
 ### UI и архитектура
 - `UIPanel` — базовый класс с fade-анимацией через корутины, работает при `timeScale = 0`; `IsVisible` — intent-based флаг, не alpha
@@ -140,91 +152,6 @@ public const string ParamUI      = "UIVolume";
 ### Настройка Input System
 
 Создать Input Action Asset, добавить Action Map `UI`, Action `Pause`. Назначить ссылку в `PauseController → _pauseAction`.
-
----
-
-## Структура проекта
-
-```
-Assets/
-└── _Project/
-    ├── Scripts/
-    │   ├── Audio/
-    │   │   ├── AudioSystem.cs          # Фасад аудиосистемы (PersistentSingleton)
-    │   │   ├── MusicChannel.cs         # Кроссфейд + стек треков
-    │   │   ├── AmbientLayer.cs         # Именованные ambient-слои
-    │   │   ├── SfxPool.cs              # Object pool для SFX
-    │   │   ├── AudioMixerRouter.cs     # Linear → dB, кеш значений
-    │   │   ├── AudioStack.cs           # Стек треков (Push/Pop/Replace)
-    │   │   ├── AudioMessages.cs        # MessageBus-сообщения аудио
-    │   │   ├── AudioData.cs            # ScriptableObject параметров клипа
-    │   │   ├── SceneMusicConfig.cs     # SO: маппинг сцен → аудиоконфиг
-    │   │   ├── SceneAudioTrigger.cs    # MonoBehaviour-триггер аудио
-    │   │   └── SoundVariance.cs        # Рандомизация pitch/volume
-    │   │
-    │   ├── Localization/
-    │   │   ├── LocalizationManager.cs  # Менеджер (PersistentSingleton)
-    │   │   ├── LocalizationData.cs     # SO с таблицей ключ-значение
-    │   │   ├── ILocalizationSource.cs  # Контракт источника локализации
-    │   │   ├── LocalizableString.cs    # Сериализуемая строка (Raw/Localized)
-    │   │   ├── LocalizedText.cs        # MonoBehaviour для TMP/Text
-    │   │   ├── LocalizedLabel.cs       # Альтернативный компонент с SetArg<T>
-    │   │   ├── LocalizationCallbackReceiver.cs  # UnityEvent при смене языка
-    │   │   └── LocKeys.cs              # Реестр всех ключей (константы)
-    │   │
-    │   ├── Save/
-    │   │   ├── SaveManager.cs          # Фасад системы сохранений
-    │   │   ├── SaveFileService.cs      # Атомарный I/O, checksum, legacy
-    │   │   ├── SaveMigrationService.cs # Цепочка IMigrationStep
-    │   │   ├── SaveableRegistry.cs     # Реестр ISaveableComponent
-    │   │   ├── SaveableComponent.cs    # Абстрактный базовый класс
-    │   │   ├── SaveableId.cs           # GUID-компонент для объектов
-    │   │   ├── AutoSaveService.cs      # Периодическое сохранение
-    │   │   ├── GameProgressData.cs     # Данные прогресса игрока
-    │   │   ├── WorldStateData.cs       # Состояние объектов мира
-    │   │   ├── SaveMetadata.cs         # Техническая информация о файле
-    │   │   ├── SaveConstants.cs        # Константы формата
-    │   │   └── ISaveSlot.cs            # Маркерный интерфейс слота
-    │   │
-    │   ├── SceneTransition/
-    │   │   ├── SceneTransitionManager.cs  # Управление переходами
-    │   │   ├── SceneLoader.cs             # Фасад загрузки сцен
-    │   │   ├── TransitionRequest.cs       # Параметры перехода + фабричные методы
-    │   │   ├── TransitionState.cs         # Enum фаз перехода
-    │   │   └── SceneTransitionMessages.cs # MessageBus-сообщения переходов
-    │   │
-    │   ├── UI/
-    │   │   ├── Core/
-    │   │   │   ├── UIPanel.cs             # Базовый класс панелей (fade, timeScale=0)
-    │   │   │   └── ConfirmDialog.cs        # Модальный диалог подтверждения
-    │   │   ├── MainMenuController.cs       # Главное меню
-    │   │   ├── PauseController.cs          # Context-стек паузы
-    │   │   ├── SettingsUIController.cs     # UI настроек
-    │   │   ├── AncestraMenuButton.cs       # Процедурный hover-эффект кнопок
-    │   │   └── AncestraTitleEffect.cs      # Волновой эффект заголовка TMP
-    │   │
-    │   ├── Core/
-    │   │   ├── MessageBus.cs           # Type-safe event bus
-    │   │   ├── PersistentSingleton.cs  # DontDestroyOnLoad базовый класс
-    │   │   ├── AppSettings.cs          # PlayerPrefs-хранилище настроек
-    │   │   ├── SettingsBootstrapper.cs # Применение настроек при старте сцены
-    │   │   ├── GameMessages.cs         # Общие MessageBus-сообщения
-    │   │   ├── Yielders.cs             # Кеш WaitForSeconds / WaitForFixedUpdate
-    │   │   └── GuidGenerator.cs        # Генерация и валидация GUID
-    │   │
-    │   └── Data/
-    │       ├── ISaveable.cs            # Типизированный контракт сохранения
-    │       └── ISaveSlot.cs            # Маркерный интерфейс Reset()
-    │
-    ├── ScriptableObjects/
-    │   ├── Audio/                      # AudioData и SceneMusicConfig ассеты
-    │   └── Localization/               # LocalizationData SO для каждого языка
-    │
-    └── Scenes/
-        ├── MainMenu
-        ├── Prologue
-        └── ...
-```
 
 ---
 
@@ -353,6 +280,61 @@ SceneTransitionRequestedMessage
 
 ---
 
+### SceneAudioTrigger
+
+Альтернатива `SceneMusicConfig` для случаев, когда аудио привязано к конкретному GameObject, а не к имени сцены (аддитивные сцены, катсцены, отдельные зоны).
+
+```csharp
+// Режимы:
+// TriggerMode.Replace — заменяет текущую музыку (стандартная смена сцены)
+// TriggerMode.Push    — добавляет в стек; OnDisable делает Pop (для катсцен и аддитивных сцен)
+
+// Вызов вручную (если _playOnStart = false):
+sceneAudioTrigger.Play();
+sceneAudioTrigger.Stop();
+```
+
+Настройки в инспекторе:
+- `_music` — `AudioData` для трека (`null` = не менять)
+- `_mode` — `Replace` / `Push`
+- `_fadeIn` / `_fadeOut` — длительность; `-1` = брать из `AudioData`
+- `_ambientLayers` — список `AmbientEntry` (data, layerId, fadeIn, fadeOut)
+- `_playOnStart` — автозапуск при `Start()`
+
+---
+
+### LocalizationCallbackReceiver
+
+MonoBehaviour-прокси: реакция на смену языка **без написания кода** — через `UnityEvent<int>` в Inspector.
+
+```csharp
+// Inspector-настройки:
+// _onLanguageChanged  — UnityEvent<int>, вызывается с индексом нового языка
+// _invokeOnEnable     — true: сразу вызвать событие при включении для синхронизации UI
+```
+
+Типичные применения: переключение спрайтов флага, воспроизведение SFX при смене языка, скрытие/показ объектов, зависящих от локали.
+
+---
+
+### MainMenuController
+
+```csharp
+// Публичные методы (привязываются к кнопкам через Inspector):
+OpenSettings();     // меню → настройки
+BackToMainMenu();   // настройки → меню; вызывает Discard() перед скрытием панели
+
+OnClickNewGame();   // удаляет слот 0, загружает _prologueScene
+OnClickContinue();  // загружает savedSceneName из слота 0
+OnClickExit();      // Application.Quit() / EditorApplication.isPlaying = false в Editor
+```
+
+Кнопка Continue автоматически становится некликабельной при отсутствии сохранения — состояние обновляется через `MessageBus<GameSavedMessage>` и `MessageBus<GameLoadedMessage>`.
+
+Поле `_prologueScene` (default: `"Prologue"`) задаёт имя сцены для New Game.
+
+---
+
 ### UIPanel
 
 ```csharp
@@ -366,6 +348,34 @@ bool isReady   = panel.IsFullyVisible;  // alpha == 1 && !IsAnimating
 ```
 
 Анимация через корутины с `Time.unscaledDeltaTime` — работает при `timeScale = 0`.
+
+---
+
+### SettingsUIController
+
+Экран настроек с **pending-состоянием**: все изменения накапливаются в `_pending`-полях и попадают в `AppSettings` только через `Apply()`. `Discard()` откатывает изменения, в том числе возвращает язык к `_committedLanguageIndex` — индексу, зафиксированному последним `Apply()`.
+
+```csharp
+// Публичный API:
+Init();                   // идемпотентная инициализация; вызывать из MainMenuController/PauseController
+
+OpenVideoMenu();          // открыть подменю видео
+OpenAudioMenu();          // открыть подменю аудио
+OpenGameplayMenu();       // открыть подменю геймплея
+OpenSettingsMainMenu();   // назад в список настроек; показывает ConfirmDialog при несохранённых изменениях
+
+Apply();                  // фиксирует _pending → AppSettings, применяет громкость, качество, язык
+Discard();                // откатывает _pending к AppSettings, синхронизирует слайдеры и dropdown
+SyncLanguageDropdown();   // синхронизирует dropdown языка без вызова onValueChanged
+```
+
+Секции настроек:
+- **Аудио** — четыре слайдера (master, music, ambient, sfx); превью в реальном времени через `AudioVolumeChangedMessage`
+- **Качество** — три кнопки (Low / Medium / High); активная кнопка некликабельна и окрашена
+- **Графика** — dropdown разрешений с дедупликацией по `width×height`, toggle VSync (применяется немедленно, не через pending)
+- **Язык** — dropdown из `LocalizationManager.GetAvailableLanguageNames()`
+
+При уходе из подменю с несохранёнными изменениями показывается `ConfirmDialog` с выбором Apply/Discard.
 
 ---
 
@@ -390,11 +400,69 @@ AppSettings.ResetAll();
 
 ---
 
+### PlayerInputHandler
+
+Единственная точка доступа к вводу. Все системы читают свойства — ни одна не обращается к `InputSystem` напрямую.
+
+```csharp
+// Другие системы читают готовые свойства:
+Vector2 move   = _input.MoveInput;
+Vector2 look   = _input.LookInput;
+bool focusing  = _input.IsFocusing;
+bool flashlight = _input.FlashlightTogglePressedThisFrame;
+
+// События для реакции в момент нажатия:
+_input.OnInteractPerformed += HandleInteract;
+_input.OnInteractCanceled  += HandleInteractEnd;
+```
+
+Поддержка геймпада — добавить биндинг в Input Actions Asset, код менять не нужно.
+
+---
+
+### MovementSettings
+
+ScriptableObject с полным балансом игрока. Создаётся через **правый клик → Ancestra → Movement Settings**.
+
+Секции: базовые скорости, инерция (`accelerationRate` / `decelerationRate`), гравитация, приседание, head bob, Perlin-шум камеры, focus-зум, шаги, батарея фонарика, sway фонарика, система страха.
+
+```csharp
+// Система страха — нелинейная кривая нарастания:
+// X = нормированное время [0..1], Y = страх [0..1]
+// fearMaxTime задаёт полный цикл в секундах (default: 200)
+public AnimationCurve fearCurve;
+public float fearMaxTime = 200f;
+```
+
+---
+
+### CutsceneController / CutsceneData
+
+Показывает кадры пролога один за другим. Тап/клик — следующий кадр. Fade между кадрами через `UIPanel`, переход в следующую сцену через `SceneLoader`.
+
+```csharp
+// CutsceneData — назначить в инспекторе:
+// Ancestra/Narrative/Cutscene Data
+// nextSceneName — сцена после последнего кадра (default: "00_Level")
+
+// CutsceneFrame:
+// text                        — текст кадра
+// voice                       — AudioClip (опционально)
+// charactersPerSecondOverride — 0 = глобальное значение контроллера
+```
+
+Приоритет следующей сцены: `overrideNextScene` (поле контроллера) → `CutsceneData.nextSceneName` → `"00_Level"`.
+
+---
+
 ## Паттерны и соглашения
 
 | Паттерн | Применение |
 |---|---|
 | `PersistentSingleton<T>` | `AudioSystem`, `LocalizationManager`, `SaveManager`, `PauseController` |
+| Input Abstraction | `PlayerInputHandler` — одна точка чтения, остальные системы не трогают Input System |
+| ScriptableObject-баланс | `MovementSettings` — все числовые параметры игрока без перекомпиляции |
+| Frame Sequencer | `CutsceneController` + `CutsceneData` — нарративный пролог без кода |
 | `MessageBus<T>` | Связь между всеми системами без прямых зависимостей |
 | `ScriptableObject` | `AudioData`, `SceneMusicConfig`, `LocalizationData` |
 | `readonly struct` | Все MessageBus-сообщения (нет heap-аллокаций) |
@@ -411,7 +479,44 @@ AppSettings.ResetAll();
 - Музыку и ambient менять **только** через `MessageBus` — прямые вызовы `MusicChannel` обходят логику системы
 - `SaveableId` генерировать в Editor, не в runtime — runtime-ID не сохраняется между сессиями
 - `Yielders.UnscaledTime()` нельзя переиспользовать в цикле — `WaitForSecondsRealtime` хранит абсолютное время
+- Ввод читать только через `PlayerInputHandler` — прямые обращения к `InputSystem` из других систем запрещены
+- `MovementSettings` ассет создавать через меню, не дублировать поля в инспекторе MonoBehaviour
+- Следующую сцену после катсцены задавать в `CutsceneData.nextSceneName`; `overrideNextScene` — только для одноразовых исключений
+- `SceneAudioTrigger` в режиме `Push` рассчитывает на симметричный `OnDisable` — не уничтожай объект без `Stop()`, иначе трек останется в стеке
+- Инициализировать `SettingsUIController.Init()` один раз из `MainMenuController.Start()` или `PauseController.Start()` — метод идемпотентен, повторный вызов безопасен, но избыточен
 
 ---
 
-*Документация сгенерирована на основе исходного кода проекта.*
+## Утилиты
+
+### GuidGenerator
+
+Тонкая обёртка над `System.Guid` для работы с `SaveableId`.
+
+```csharp
+string id    = GuidGenerator.New();        // стандартный GUID (8-4-4-4-12)
+string short = GuidGenerator.Short(id);    // первые 8 символов — только для логов
+bool   valid = GuidGenerator.IsValid(id);  // проверка формата
+```
+
+`Short()` не гарантирует уникальности — использовать исключительно для вывода в лог.
+
+---
+
+### Yielders
+
+Кеш coroutine-объектов для снижения нагрузки на GC: каждый `new WaitForSeconds(t)` аллоцирует объект; при частых корутинах это создаёт давление на сборщик мусора.
+
+```csharp
+yield return Yielders.Time(0.5f);          // WaitForSeconds (кешируется по значению float)
+yield return Yielders.UnscaledTime(0.5f);  // WaitForSecondsRealtime (работает при timeScale = 0)
+yield return Yielders.EndOfFrame;          // WaitForEndOfFrame
+yield return Yielders.FixedUpdate;         // WaitForFixedUpdate
+
+Yielders.ClearCache();                     // сброс кешей — только при горячей перезагрузке в Editor
+```
+
+**Ограничения кеша:**
+- `UnscaledTime()` нельзя переиспользовать в цикле — `WaitForSecondsRealtime` хранит абсолютное время `m_WaitUntilTime`; после первого завершения второй `yield return` вернётся немедленно. В цикле создавай `new WaitForSecondsRealtime(_interval)` на каждой итерации.
+- Не передавай в `Time()` динамические значения (`Random.Range`) — каждый уникальный `float` создаёт новую запись в словаре.
+- `Yielders.Time()` (WaitForSeconds) безопасен в цикле — Unity сбрасывает его нативно.

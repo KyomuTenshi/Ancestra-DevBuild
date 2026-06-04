@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a3a4f2aaee5da44208506ee0d7a198b1, type: 3}
+  m_Name: Default_Mov
+  m_EditorClassIdentifier: Assembly-CSharp::MovementSettings
+  walkSpeed: 1.35
+  sprintSpeed: 2.8
+  crouchSpeed: 0.7
+  accelerationRate: 2.5
+  decelerationRate: 6
+  inputSmoothing: 0.15
+  gravityStrength: -18
+  groundAnchorForce: -2
+  terminalFallSpeed: -20
+  landingDampFactor: 0.85
+  standingHeight: 1.8
+  crouchHeight: 0.9
+  crouchTransitionSpeed: 8
+  cameraLookSmoothTime: 0.05
+  headBobLateralAmplitude: 0.02
+  headBobVerticalAmplitude: 0.035
+  headBobFrequency: 1
+  headBobReturnSpeed: 3
+  baseCameraNoiseAmplitude: 0.1
+  maxCameraNoiseAmplitude: 1.2
+  cameraNoiseSpeed: 0.5
+  cameraNoiseMovingMultiplier: 1.5
+  focusInputDelay: 0.15
+  focusJitterMaxAmplitude: 3.5
+  focusJitterSpeed: 8
+  stepDistance: 1.2
+  baseStepRandomness: 0.05
+  maxStepRandomness: 0.3
+  batteryMaxCharge: 300
+  batteryDrainRate: 1
+  batteryFlickerThreshold: 0.2
+  batteryFlickerIntensity: 0.6
+  flashlightEquipSpeed: 4
+  flashlightHiddenYOffset: -1
+  flashlightIntensityTransitionSpeed: 8
+  swayAmount: 0.02
+  maxSwayAmount: 0.06
+  swaySmoothSpeed: 6
+  swayWalkBobAmplitude: 0.01
+  swayWalkBobFrequency: 1
+  fearCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 1
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 1
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  fearMaxTime: 200

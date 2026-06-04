@@ -91,8 +91,21 @@ public class SceneTransitionManager : PersistentSingleton<SceneTransitionManager
 
     protected override void Awake()
     {
+        // Если мы — дубликат (персистентный STM уже существует), сбрасываем scene-оверлей
+        // в прозрачное состояние до того как base.Awake() уничтожит наш GO.
+        // Без этого Overlay с alpha=1 остаётся в сцене и перекрывает экран после FadeIn
+        // персистентного STM — выглядит как "оверлей не исчезает".
+        if (Instance != null && Instance != this && overlayCanvasGroup != null)
+            overlayCanvasGroup.alpha = 0f;
+
         base.Awake();
         if (Instance != this) return;
+
+        // overlayCanvasGroup живёт в сцене (MainMenuCanvas, PrologueCanvas и т.п.).
+        // При выгрузке сцены объект уничтожается, и ссылка становится null — фейд пропадает.
+        // Решение: пересаживаем Overlay под собственный Canvas-дочерний объект STM
+        // до DontDestroyOnLoad, чтобы он персистировал вместе со всем менеджером.
+        EnsureOverlayPersists();
 
         ValidateOverlay();
         // instant:true — сразу обнуляет alpha в Awake.
@@ -528,6 +541,28 @@ public class SceneTransitionManager : PersistentSingleton<SceneTransitionManager
                 return true;
         }
         return false;
+    }
+
+    private void EnsureOverlayPersists()
+    {
+        if (overlayCanvasGroup == null) return;
+        if (overlayCanvasGroup.transform.IsChildOf(transform)) return;
+
+        // Создаём выделенный Canvas прямо под STM (он уже DDOL-объект благодаря base.Awake).
+        // Screen Space Overlay рендерится независимо от позиции в иерархии, поэтому
+        // родитель с обычным Transform не мешает корректному отображению.
+        var canvasGO = new GameObject("[TransitionOverlayCanvas]");
+        canvasGO.transform.SetParent(transform);
+
+        var canvas = canvasGO.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 32767;
+
+        // worldPositionStays: false — сохраняем localPosition/Scale/Rotation Overlay-объекта
+        // (anchors stretch 0→1, что корректно растянет его на весь Canvas).
+        overlayCanvasGroup.transform.SetParent(canvasGO.transform, false);
+
+        Log("EnsureOverlayPersists: Overlay перемещён под DDOL-иерархию STM.");
     }
 
     private void ValidateOverlay()

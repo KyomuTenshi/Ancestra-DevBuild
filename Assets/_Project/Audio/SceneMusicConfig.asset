@@ -24,3 +24,21 @@ MonoBehaviour:
     - layerId: freesound_community
       data: {fileID: 11400000, guid: e45b2aec1e3e149d5b633cf138870979, type: 2}
       fadeInDuration: 0
+  - sceneName: Prologue
+    music: {fileID: 11400000, guid: bc3b0b4b6dd4740c5ada3dd398329356, type: 2}
+    pushMode: 0
+    overrideFadeIn: 0
+    overrideFadeOut: 0
+    ambientLayers:
+    - layerId: soundreality-wind-blowing
+      data: {fileID: 11400000, guid: 06a7e940fdaa64955a7de048fcce2827, type: 2}
+      fadeInDuration: 0
+  - sceneName: Chapter01
+    music: {fileID: 11400000, guid: 481d302a756064a1ab41542c91471911, type: 2}
+    pushMode: 0
+    overrideFadeIn: 0
+    overrideFadeOut: 0
+    ambientLayers:
+    - layerId: soundreality-wind-blowing
+      data: {fileID: 11400000, guid: 06a7e940fdaa64955a7de048fcce2827, type: 2}
+      fadeInDuration: 0
